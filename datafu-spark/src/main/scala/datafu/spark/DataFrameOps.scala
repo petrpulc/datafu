@@ -63,27 +63,31 @@ object DataFrameOps {
                       dfRange: DataFrame,
                       colRangeStart: String,
                       colRangeEnd: String,
-                      DECREASE_FACTOR: Long = 2 ^ 8): DataFrame =
+                      DECREASE_FACTOR: Long = 2 ^ 8,
+                      joinType: String = "inner"): DataFrame =
       SparkDFUtils.joinWithRange(df,
                                  colSingle,
                                  dfRange,
                                  colRangeStart,
                                  colRangeEnd,
-                                 DECREASE_FACTOR)
+                                 DECREASE_FACTOR,
+                                 joinType)
 
     def joinWithRangeAndDedup(colSingle: String,
                               dfRange: DataFrame,
                               colRangeStart: String,
                               colRangeEnd: String,
                               DECREASE_FACTOR: Long = 2 ^ 8,
-                              dedupSmallRange: Boolean = true): DataFrame =
+                              dedupSmallRange: Boolean = true,
+                              joinType: String = "inner"): DataFrame =
       SparkDFUtils.joinWithRangeAndDedup(df,
                                          colSingle,
                                          dfRange,
                                          colRangeStart,
                                          colRangeEnd,
                                          DECREASE_FACTOR,
-                                         dedupSmallRange)
+                                         dedupSmallRange,
+                                         joinType)
 
     def broadcastJoinSkewed(skewed: DataFrame,
                             joinCol: String,

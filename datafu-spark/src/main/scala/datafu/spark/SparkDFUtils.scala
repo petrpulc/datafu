@@ -402,6 +402,7 @@ object SparkDFUtils {
     * @param colRangeEnd the end range column's name
     * @param DECREASE_FACTOR resolution factor. instead of exploding the range column directly,
     *                        we first decrease its resolution by this factor
+    * @param joinType type of the spark join (inner is the default, the left_outer is another one that may be useful)
     * @return
     */
   def joinWithRange(dfSingle: DataFrame,
@@ -409,13 +410,15 @@ object SparkDFUtils {
                     dfRange: DataFrame,
                     colRangeStart: String,
                     colRangeEnd: String,
-                    DECREASE_FACTOR: Long): DataFrame = {
+                    DECREASE_FACTOR: Long,
+                    joinType: String = "inner"): DataFrame = {
     val dfJoined = joinWithRangeInternal(dfSingle,
                                          colSingle,
                                          dfRange,
                                          colRangeStart,
                                          colRangeEnd,
-                                         DECREASE_FACTOR)
+                                         DECREASE_FACTOR,
+                                         joinType)
     dfJoined.drop("range_start",
                   "range_end",
                   "decreased_range_single",
@@ -429,7 +432,8 @@ object SparkDFUtils {
                                     dfRange: DataFrame,
                                     colRangeStart: String,
                                     colRangeEnd: String,
-                                    DECREASE_FACTOR: Long): DataFrame = {
+                                    DECREASE_FACTOR: Long,
+                                    joinType: String = "inner"): DataFrame = {
 
     import org.apache.spark.sql.functions.udf
     val rangeUDF = udf((start: Long, end: Long) => (start to end).toArray)
@@ -447,9 +451,9 @@ object SparkDFUtils {
                   floor(col(colSingle).cast(LongType) / lit(DECREASE_FACTOR)))
       .join(dfRange_exploded,
             col("decreased_single") === col("decreased_range_single"),
-            "left_outer")
+            joinType)
       .withColumn("range_size", expr("(range_end - range_start + 1)"))
-      .filter("single>=range_start and single<=range_end")
+      .filter("decreased_range_single is null or (single>=range_start and single<=range_end)")
   }
 
   /**
@@ -478,14 +482,16 @@ object SparkDFUtils {
                             colRangeStart: String,
                             colRangeEnd: String,
                             DECREASE_FACTOR: Long,
-                            dedupSmallRange: Boolean): DataFrame = {
+                            dedupSmallRange: Boolean,
+                            joinType: String = "inner"): DataFrame = {
 
     val dfJoined = joinWithRangeInternal(dfSingle,
                                          colSingle,
                                          dfRange,
                                          colRangeStart,
                                          colRangeEnd,
-                                         DECREASE_FACTOR)
+                                         DECREASE_FACTOR,
+                                         joinType)
 
     // "range_start" is here for consistency
     val dfDeduped = if (dedupSmallRange) {

@@ -174,16 +174,16 @@ class DataFrameOpsTests extends FunSuite with DataFrameSuiteBase {
     StructField("desc", StringType, true)
   )
 
-  val expectedSchemaRangedJoin = List(
+  val expectedSchemaRangedInnerJoin = List(
     StructField("col_grp", StringType, true),
     StructField("col_ord", IntegerType, false),
     StructField("col_str", StringType, true),
-    StructField("start", IntegerType, true),
-    StructField("end", IntegerType, true),
+    StructField("start", IntegerType, false),
+    StructField("end", IntegerType, false),
     StructField("desc", StringType, true)
   )
 
-  test("join_with_range") {
+  test("join_with_range_inner") {
     val joinWithRangeDataFrame =
       sqlContext.createDataFrame(sc.parallelize(
                                    Seq(Row(1, 2, "asd1"),
@@ -205,13 +205,49 @@ class DataFrameOpsTests extends FunSuite with DataFrameSuiteBase {
           Row("a", 3, "asd3", 3, 5, "asd3"),
           Row("a", 3, "asd3", 3, 10, "asd4")
         )),
-      StructType(expectedSchemaRangedJoin)
+      StructType(expectedSchemaRangedInnerJoin)
     )
 
     val actual = inputDataFrame.joinWithRange("col_ord",
                                               joinWithRangeDataFrame,
                                               "start",
                                               "end")
+
+    assertDataFrameEquals(expected, actual)
+  }
+
+  val expectedSchemaRangedLeftJoin = List(
+    StructField("col_grp", StringType, true),
+    StructField("col_ord", IntegerType, false),
+    StructField("col_str", StringType, true),
+    StructField("start", IntegerType, true),
+    StructField("end", IntegerType, true),
+    StructField("desc", StringType, true)
+  )
+
+  // TODO: fails because we expect join with nulls in the unmatched left entry (a,3,asd3) but we actually join on the decreased_range...
+  test("join_with_range_left") {
+    val joinWithRangeDataFrame =
+      sqlContext.createDataFrame(sc.parallelize(
+        Seq(Row(1, 2, "asd1"))),
+        StructType(schema2))
+
+    val expected = sqlContext.createDataFrame(
+      sc.parallelize(
+        Seq(
+          Row("b", 1, "asd4", 1, 2, "asd1"),
+          Row("a", 2, "asd2", 1, 2, "asd1"),
+          Row("a", 1, "asd1", 1, 2, "asd1"),
+          Row("a", 3, "asd3", null, null, null)
+        )),
+      StructType(expectedSchemaRangedLeftJoin)
+    )
+
+    val actual = inputDataFrame.joinWithRange("col_ord",
+      joinWithRangeDataFrame,
+      "start",
+      "end",
+      joinType = "left")
 
     assertDataFrameEquals(expected, actual)
   }
